@@ -1,0 +1,106 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}",
+        "GITHUB_DEFAULT_OWNER": "hadamaouattara",
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "MCP_TIMEOUT": "60000",
+        "MCP_RETRY_COUNT": "5",
+        "GITHUB_API_VERSION": "2022-11-28"
+      },
+      "disabled": false
+    },
+    "qiskit-mcp": {
+      "command": "C:\\Users\\ohada\\qiskit-mcp-server\\.venv\\Scripts\\python.exe",
+      "args": [
+        "C:\\Users\\ohada\\qiskit-mcp-server\\main.py"
+      ],
+      "env": {
+        "PYTHONPATH": "C:\\Users\\ohada\\qiskit-mcp-server",
+        "MCP_TIMEOUT": "60000",
+        "QISKIT_SUPPRESS_PACKAGING_WARNINGS": "Y",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "disabled": false
+    },
+    "n8n-mcp": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--init",
+        "--network=host",
+        "-e", "MCP_MODE=stdio",
+        "-e", "LOG_LEVEL=info",
+        "-e", "DISABLE_CONSOLE_OUTPUT=false",
+        "-e", "N8N_API_URL=${N8N_API_URL}",
+        "-e", "N8N_API_KEY=${N8N_API_KEY}",
+        "-e", "N8N_API_TIMEOUT=60000",
+        "-e", "N8N_VERIFY_SSL=false",
+        "-e", "N8N_REQUEST_TIMEOUT=30000",
+        "ghcr.io/czlonkowski/n8n-mcp:latest"
+      ],
+      "disabled": false
+    },
+    "langsmith-mcp": {
+      "command": "python",
+      "args": [
+        "C:\\Users\\ohada\\langsmith-mcp-server\\server.py"
+      ],
+      "env": {
+        "LANGSMITH_API_KEY": "${LANGSMITH_API_KEY}",
+        "LANGSMITH_PROJECT": "sapience",
+        "LANGSMITH_ENDPOINT": "https://api.smith.langchain.com",
+        "SAP_COMPANY_CODES": "1000,2000,3000",
+        "SAPIENCE_API_URL": "${SAPIENCE_API_URL}",
+        "N8N_WEBHOOK_URL": "${N8N_WEBHOOK_URL}",
+        "PYTHONPATH": "C:\\Users\\ohada\\langsmith-mcp-server",
+        "PYTHONUNBUFFERED": "1",
+        "MCP_TIMEOUT": "60000",
+        "LOG_LEVEL": "info"
+      },
+      "disabled": false
+    },
+    "postgres": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--init",
+        "--network=host",
+        "-e", "POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}",
+        "-e", "PGCONNECT_TIMEOUT=30",
+        "-e", "PGCOMMAND_TIMEOUT=60000"
+      ],
+      "image": "mcp/postgres",
+      "disabled": false
+    }
+  },
+  "globalSettings": {
+    "logging": {
+      "level": "info",
+      "enabled": true,
+      "maxFileSize": "10MB",
+      "maxFiles": 5
+    },
+    "timeout": 60000,
+    "retryPolicy": {
+      "enabled": true,
+      "maxRetries": 5,
+      "retryDelay": 3000,
+      "exponentialBackoff": true
+    },
+    "performance": {
+      "concurrentConnections": 10,
+      "requestPooling": true
+    }
+  }
+}
