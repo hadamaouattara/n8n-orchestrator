@@ -1,0 +1,197 @@
+{
+  "name": "Anomaly Detection Daily",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "daily-trigger",
+      "name": "Daily Trigger (Weekdays)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.SAP_ODATA_URL }}/CKMLHD?$filter=CompanyCode eq '{{ $env.SAP_COMPANY_CODE }}' and CreatedOn ge datetime'{{ $now.minus({days: 1}).toISODate() }}'",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.SAP_OAUTH_TOKEN }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "recent-costing",
+      "name": "Get Recent Costing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SAPIENCE_API_URL }}/detect/anomalies",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ data: $json, threshold: 0.05, impact_min_eur: 5000 }) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.CLAUDE_API_KEY }}"
+            },
+            {
+              "name": "X-Tenant-ID",
+              "value": "{{ $env.TENANT_ID }}"
+            }
+          ]
+        }
+      },
+      "id": "detect-anomalies",
+      "name": "Detect Anomalies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.anomalies.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "has-anomalies",
+      "name": "Has Anomalies?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.atlassian.com/ex/jira/{{ $env.JIRA_CLOUD_ID }}/rest/api/3/issue",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({\n  fields: {\n    project: { key: $env.JIRA_PROJECT_KEY },\n    summary: `Anomaly Detected - ${$json.anomalies[0].material_code}`,\n    description: `🔍 Anomaly Detection Alert\\n\\n**Material:** ${$json.anomalies[0].material_code}\\n**Impact:** €${$json.anomalies[0].impact_eur.toLocaleString()}\\n**Confidence:** ${($json.anomalies[0].confidence * 100).toFixed(1)}%\\n\\n**Details:** ${$json.anomalies[0].description}\\n\\n[View in Dashboard](${$env.DASHBOARD_URL}/anomalies/${$json.anomalies[0].id})`,\n    issuetype: { name: 'Task' },\n    priority: { name: $json.anomalies[0].impact_eur > 50000 ? 'High' : 'Medium' },\n    labels: ['anomaly', 'costing', 'automated']\n  }\n}) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "jiraCloudApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      },
+      "id": "create-jira-ticket",
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.microsoft.com/v1.0/teams/{{ $env.TEAMS_TEAM_ID }}/channels/{{ $env.TEAMS_ALERTS_CHANNEL }}/messages",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({\n  body: {\n    contentType: 'html',\n    content: `<h2>🚨 Anomaly Alert</h2>\n    <p><strong>Material:</strong> ${$json.anomalies[0].material_code}</p>\n    <p><strong>Impact:</strong> €${$json.anomalies[0].impact_eur.toLocaleString()}</p>\n    <p><strong>Confidence:</strong> ${($json.anomalies[0].confidence * 100).toFixed(1)}%</p>\n    <p><a href='${$env.DASHBOARD_URL}/anomalies/${$json.anomalies[0].id}'>🔍 Investigate</a></p>`\n  }\n}) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "microsoftTeamsOAuth2Api"
+      },
+      "id": "alert-teams",
+      "name": "Alert Teams",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 380]
+    }
+  ],
+  "connections": {
+    "Daily Trigger (Weekdays)": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Costing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Costing": {
+      "main": [
+        [
+          {
+            "node": "Detect Anomalies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Anomalies": {
+      "main": [
+        [
+          {
+            "node": "Has Anomalies?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Anomalies?": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Alert Teams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
