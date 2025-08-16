@@ -1,0 +1,39 @@
+{
+  "name": "langsmith-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for LangSmith integration with SAPience ML workflows",
+  "main": "server.py",
+  "scripts": {
+    "start": "python server.py",
+    "dev": "python server.py",
+    "test": "pytest tests/",
+    "lint": "ruff check .",
+    "format": "ruff format ."
+  },
+  "dependencies": {
+    "langsmith": "^0.1.0",
+    "mcp": "^1.0.0",
+    "asyncio": "^3.4.3",
+    "pydantic": "^2.0.0",
+    "httpx": "^0.27.0"
+  },
+  "devDependencies": {
+    "pytest": "^8.0.0",
+    "pytest-asyncio": "^0.23.0",
+    "ruff": "^0.1.0"
+  },
+  "keywords": [
+    "mcp",
+    "langsmith", 
+    "claude",
+    "sapience",
+    "ml-observability",
+    "sap-integration"
+  ],
+  "author": "Exonov Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hadamaouattara/n8n-orchestrator"
+  }
+}
