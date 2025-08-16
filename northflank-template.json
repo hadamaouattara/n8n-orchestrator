@@ -1,183 +1,207 @@
 {
+  "$schema": "https://api.northflank.com/v1/schemas/template",
   "apiVersion": "v1",
   "spec": {
-    "kind": "Workflow", 
+    "kind": "Workflow",
     "spec": {
       "type": "deployment",
       "context": {
         "projects": [
           {
-            "name": "sapience-platform",
+            "name": "create-project",
             "spec": {
-              "name": "sapience-platform",
+              "name": "${args.PROJECT_NAME}",
               "description": "SaaS ML platform with n8n orchestration and SAP integration",
               "region": "europe-west"
-            }
-          }
-        ],
-        "secrets": [
-          {
-            "name": "sapience-core-secrets",
-            "spec": {
-              "name": "sapience-core-secrets",
-              "project": "sapience-platform",
-              "data": {
-                "N8N_ADMIN_USER": "admin",
-                "N8N_ADMIN_PASSWORD": "{{ secrets.N8N_ADMIN_PASSWORD }}",
-                "GITHUB_TOKEN": "{{ secrets.GITHUB_TOKEN }}",
-                "CLAUDE_API_KEY": "{{ secrets.CLAUDE_API_KEY }}",
-                "SAP_ODATA_URL": "{{ secrets.SAP_ODATA_URL }}",
-                "SAP_OAUTH_TOKEN": "{{ secrets.SAP_OAUTH_TOKEN }}",
-                "TENANT_ID": "demo-tenant"
-              }
-            }
-          }
-        ],
-        "addons": [
-          {
-            "name": "sapience-postgres",
-            "spec": {
-              "name": "sapience-postgres",
-              "project": "sapience-platform",
-              "type": "postgresql",
-              "version": "15",
-              "plan": "nf-compute-10",
-              "replicas": 1,
-              "storage": 10,
-              "externalAccessEnabled": false
-            }
-          }
-        ],
-        "services": [
-          {
-            "name": "n8n-orchestrator",
-            "spec": {
-              "name": "n8n-orchestrator",
-              "project": "sapience-platform",
-              "type": "combined",
-              "deployment": {
-                "instances": 1,
-                "docker": {
-                  "configType": "dockerfile"
-                }
-              },
-              "runtimeEnvironment": {
-                "variables": {
-                  "N8N_HOST": "0.0.0.0",
-                  "N8N_PORT": "5678",
-                  "N8N_PROTOCOL": "https",
-                  "N8N_BASIC_AUTH_ACTIVE": "true",
-                  "N8N_BASIC_AUTH_USER": "{{ secrets.N8N_ADMIN_USER }}",
-                  "N8N_BASIC_AUTH_PASSWORD": "{{ secrets.N8N_ADMIN_PASSWORD }}",
-                  "DB_TYPE": "postgresdb",
-                  "DB_POSTGRESDB_HOST": "{{ addons.sapience-postgres.host }}",
-                  "DB_POSTGRESDB_PORT": "{{ addons.sapience-postgres.port }}",
-                  "DB_POSTGRESDB_DATABASE": "{{ addons.sapience-postgres.database }}",
-                  "DB_POSTGRESDB_USER": "{{ addons.sapience-postgres.username }}",
-                  "DB_POSTGRESDB_PASSWORD": "{{ addons.sapience-postgres.password }}",
-                  "WEBHOOK_URL": "https://{{ services.n8n-orchestrator.internalHost }}"
-                }
-              },
-              "billing": {
-                "deploymentPlan": "nf-compute-20"
-              },
-              "ports": [
-                {
-                  "name": "web",
-                  "internalPort": 5678,
-                  "public": true,
-                  "protocol": "HTTP",
-                  "security": {
-                    "policies": []
-                  }
-                }
-              ],
-              "vcsData": {
-                "projectUrl": "https://github.com/hadamaouattara/n8n-orchestrator",
-                "projectType": "github",
-                "projectBranch": "main"
-              }
-            }
-          },
-          {
-            "name": "sapience-api",
-            "spec": {
-              "name": "sapience-api", 
-              "project": "sapience-platform",
-              "type": "combined",
-              "deployment": {
-                "instances": 1,
-                "docker": {
-                  "configType": "dockerfile",
-                  "dockerfilePath": "/api/Dockerfile"
-                }
-              },
-              "runtimeEnvironment": {
-                "variables": {
-                  "DATABASE_URL": "postgresql://{{ addons.sapience-postgres.username }}:{{ addons.sapience-postgres.password }}@{{ addons.sapience-postgres.host }}:{{ addons.sapience-postgres.port }}/{{ addons.sapience-postgres.database }}",
-                  "CLAUDE_API_KEY": "{{ secrets.CLAUDE_API_KEY }}",
-                  "SAP_ODATA_URL": "{{ secrets.SAP_ODATA_URL }}",
-                  "SAP_OAUTH_TOKEN": "{{ secrets.SAP_OAUTH_TOKEN }}",
-                  "N8N_WEBHOOK_URL": "https://{{ services.n8n-orchestrator.internalHost }}/webhook"
-                }
-              },
-              "billing": {
-                "deploymentPlan": "nf-compute-20"
-              },
-              "ports": [
-                {
-                  "name": "api",
-                  "internalPort": 8000,
-                  "public": true,
-                  "protocol": "HTTP"
-                }
-              ],
-              "vcsData": {
-                "projectUrl": "https://github.com/hadamaouattara/SAPience",
-                "projectType": "github", 
-                "projectBranch": "main"
-              }
-            }
-          },
-          {
-            "name": "sapience-frontend",
-            "spec": {
-              "name": "sapience-frontend",
-              "project": "sapience-platform",
-              "type": "combined",
-              "deployment": {
-                "instances": 1,
-                "docker": {
-                  "configType": "dockerfile"
-                }
-              },
-              "runtimeEnvironment": {
-                "variables": {
-                  "NEXT_PUBLIC_API_URL": "https://{{ services.sapience-api.internalHost }}",
-                  "NEXT_PUBLIC_N8N_URL": "https://{{ services.n8n-orchestrator.internalHost }}",
-                  "NODE_ENV": "production"
-                }
-              },
-              "billing": {
-                "deploymentPlan": "nf-compute-10"
-              },
-              "ports": [
-                {
-                  "name": "web",
-                  "internalPort": 3000,
-                  "public": true,
-                  "protocol": "HTTP"
-                }
-              ],
-              "vcsData": {
-                "projectUrl": "https://github.com/hadamaouattara/sapience-v3",
-                "projectType": "github",
-                "projectBranch": "main"
-              }
             }
           }
         ]
       }
     }
-  }
+  },
+  "arguments": {
+    "PROJECT_NAME": "sapience-platform",
+    "N8N_ADMIN_PASSWORD": "",
+    "GITHUB_TOKEN": "",
+    "CLAUDE_API_KEY": "",
+    "SAP_ODATA_URL": "",
+    "SAP_OAUTH_TOKEN": "",
+    "TEAMS_TEAM_ID": "",
+    "JIRA_PROJECT_KEY": ""
+  },
+  "workflows": [
+    {
+      "name": "setup-infrastructure", 
+      "type": "sequential",
+      "context": {
+        "projectId": "${args.PROJECT_NAME}"
+      },
+      "nodes": [
+        {
+          "name": "postgres-db",
+          "type": "addon",
+          "spec": {
+            "name": "sapience-postgres",
+            "type": "postgresql",
+            "version": "15",
+            "plan": "nf-compute-10",
+            "replicas": 1,
+            "storage": 10,
+            "externalAccessEnabled": false
+          }
+        },
+        {
+          "name": "core-secrets",
+          "type": "secret-group", 
+          "spec": {
+            "name": "sapience-core-secrets",
+            "secrets": {
+              "N8N_ADMIN_PASSWORD": "${args.N8N_ADMIN_PASSWORD}",
+              "GITHUB_TOKEN": "${args.GITHUB_TOKEN}",
+              "CLAUDE_API_KEY": "${args.CLAUDE_API_KEY}",
+              "SAP_ODATA_URL": "${args.SAP_ODATA_URL}",
+              "SAP_OAUTH_TOKEN": "${args.SAP_OAUTH_TOKEN}",
+              "TEAMS_TEAM_ID": "${args.TEAMS_TEAM_ID}",
+              "JIRA_PROJECT_KEY": "${args.JIRA_PROJECT_KEY}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "deploy-services",
+      "type": "parallel",
+      "context": {
+        "projectId": "${args.PROJECT_NAME}"
+      },
+      "nodes": [
+        {
+          "name": "n8n-orchestrator",
+          "type": "combined-service",
+          "spec": {
+            "name": "n8n-orchestrator",
+            "billing": {
+              "deploymentPlan": "nf-compute-20"
+            },
+            "deployment": {
+              "instances": 1,
+              "docker": {
+                "configType": "dockerfile"
+              }
+            },
+            "runtimeEnvironment": {
+              "variables": {
+                "N8N_HOST": "0.0.0.0",
+                "N8N_PORT": "5678", 
+                "N8N_PROTOCOL": "https",
+                "N8N_BASIC_AUTH_ACTIVE": "true",
+                "N8N_BASIC_AUTH_USER": "admin",
+                "N8N_BASIC_AUTH_PASSWORD": "${secrets.sapience-core-secrets.N8N_ADMIN_PASSWORD}",
+                "DB_TYPE": "postgresdb",
+                "DB_POSTGRESDB_HOST": "${addons.sapience-postgres.host}",
+                "DB_POSTGRESDB_PORT": "${addons.sapience-postgres.port}",
+                "DB_POSTGRESDB_DATABASE": "${addons.sapience-postgres.database}",
+                "DB_POSTGRESDB_USER": "${addons.sapience-postgres.username}",
+                "DB_POSTGRESDB_PASSWORD": "${addons.sapience-postgres.password}",
+                "GITHUB_TOKEN": "${secrets.sapience-core-secrets.GITHUB_TOKEN}",
+                "CLAUDE_API_KEY": "${secrets.sapience-core-secrets.CLAUDE_API_KEY}",
+                "SAP_ODATA_URL": "${secrets.sapience-core-secrets.SAP_ODATA_URL}",
+                "SAP_OAUTH_TOKEN": "${secrets.sapience-core-secrets.SAP_OAUTH_TOKEN}",
+                "TEAMS_TEAM_ID": "${secrets.sapience-core-secrets.TEAMS_TEAM_ID}",
+                "JIRA_PROJECT_KEY": "${secrets.sapience-core-secrets.JIRA_PROJECT_KEY}"
+              }
+            },
+            "ports": [
+              {
+                "name": "web",
+                "internalPort": 5678,
+                "public": true,
+                "protocol": "HTTP"
+              }
+            ],
+            "vcsData": {
+              "projectUrl": "https://github.com/hadamaouattara/n8n-orchestrator",
+              "projectType": "github",
+              "projectBranch": "main"
+            }
+          }
+        },
+        {
+          "name": "sapience-api",
+          "type": "combined-service",
+          "spec": {
+            "name": "sapience-api",
+            "billing": {
+              "deploymentPlan": "nf-compute-20"
+            },
+            "deployment": {
+              "instances": 1,
+              "docker": {
+                "configType": "dockerfile",
+                "dockerfilePath": "/Dockerfile"
+              }
+            },
+            "runtimeEnvironment": {
+              "variables": {
+                "DATABASE_URL": "postgresql://${addons.sapience-postgres.username}:${addons.sapience-postgres.password}@${addons.sapience-postgres.host}:${addons.sapience-postgres.port}/${addons.sapience-postgres.database}",
+                "CLAUDE_API_KEY": "${secrets.sapience-core-secrets.CLAUDE_API_KEY}",
+                "SAP_ODATA_URL": "${secrets.sapience-core-secrets.SAP_ODATA_URL}",
+                "SAP_OAUTH_TOKEN": "${secrets.sapience-core-secrets.SAP_OAUTH_TOKEN}",
+                "N8N_WEBHOOK_URL": "https://${services.n8n-orchestrator.internalHost}/webhook"
+              }
+            },
+            "ports": [
+              {
+                "name": "api",
+                "internalPort": 8000,
+                "public": true,
+                "protocol": "HTTP"
+              }
+            ],
+            "vcsData": {
+              "projectUrl": "https://github.com/hadamaouattara/SAPience", 
+              "projectType": "github",
+              "projectBranch": "main"
+            }
+          }
+        },
+        {
+          "name": "sapience-frontend",
+          "type": "combined-service",
+          "spec": {
+            "name": "sapience-frontend",
+            "billing": {
+              "deploymentPlan": "nf-compute-10"
+            },
+            "deployment": {
+              "instances": 1,
+              "docker": {
+                "configType": "dockerfile"
+              }
+            },
+            "runtimeEnvironment": {
+              "variables": {
+                "NEXT_PUBLIC_API_URL": "https://${services.sapience-api.internalHost}",
+                "NEXT_PUBLIC_N8N_URL": "https://${services.n8n-orchestrator.internalHost}",
+                "NODE_ENV": "production"
+              }
+            },
+            "ports": [
+              {
+                "name": "web",
+                "internalPort": 3000,
+                "public": true,
+                "protocol": "HTTP"
+              }
+            ],
+            "vcsData": {
+              "projectUrl": "https://github.com/hadamaouattara/sapience-v3",
+              "projectType": "github", 
+              "projectBranch": "main"
+            }
+          }
+        }
+      ]
+    }
+  ]
 }
