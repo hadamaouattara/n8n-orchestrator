@@ -11,7 +11,7 @@
             "name": "create-project",
             "spec": {
               "name": "${args.PROJECT_NAME}",
-              "description": "SaaS ML platform with n8n orchestration and SAP integration",
+              "description": "SAPience ML Platform - Complete Enterprise SaaS",
               "region": "europe-west"
             }
           }
@@ -27,7 +27,9 @@
     "SAP_ODATA_URL": "",
     "SAP_OAUTH_TOKEN": "",
     "TEAMS_TEAM_ID": "",
-    "JIRA_PROJECT_KEY": ""
+    "JIRA_PROJECT_KEY": "",
+    "NEXTAUTH_SECRET": "",
+    "NEXTAUTH_URL": ""
   },
   "workflows": [
     {
@@ -44,9 +46,22 @@
             "name": "sapience-postgres",
             "type": "postgresql",
             "version": "15",
+            "plan": "nf-compute-20",
+            "replicas": 1,
+            "storage": 20,
+            "externalAccessEnabled": false
+          }
+        },
+        {
+          "name": "redis-cache",
+          "type": "addon",
+          "spec": {
+            "name": "sapience-redis",
+            "type": "redis",
+            "version": "7",
             "plan": "nf-compute-10",
             "replicas": 1,
-            "storage": 10,
+            "storage": 5,
             "externalAccessEnabled": false
           }
         },
@@ -62,15 +77,17 @@
               "SAP_ODATA_URL": "${args.SAP_ODATA_URL}",
               "SAP_OAUTH_TOKEN": "${args.SAP_OAUTH_TOKEN}",
               "TEAMS_TEAM_ID": "${args.TEAMS_TEAM_ID}",
-              "JIRA_PROJECT_KEY": "${args.JIRA_PROJECT_KEY}"
+              "JIRA_PROJECT_KEY": "${args.JIRA_PROJECT_KEY}",
+              "NEXTAUTH_SECRET": "${args.NEXTAUTH_SECRET}",
+              "NEXTAUTH_URL": "${args.NEXTAUTH_URL}"
             }
           }
         }
       ]
     },
     {
-      "name": "deploy-services",
-      "type": "parallel",
+      "name": "deploy-orchestrator",
+      "type": "sequential",
       "context": {
         "projectId": "${args.PROJECT_NAME}"
       },
@@ -81,7 +98,7 @@
           "spec": {
             "name": "n8n-orchestrator",
             "billing": {
-              "deploymentPlan": "nf-compute-20"
+              "deploymentPlan": "nf-compute-50"
             },
             "deployment": {
               "instances": 1,
@@ -108,7 +125,10 @@
                 "SAP_ODATA_URL": "${secrets.sapience-core-secrets.SAP_ODATA_URL}",
                 "SAP_OAUTH_TOKEN": "${secrets.sapience-core-secrets.SAP_OAUTH_TOKEN}",
                 "TEAMS_TEAM_ID": "${secrets.sapience-core-secrets.TEAMS_TEAM_ID}",
-                "JIRA_PROJECT_KEY": "${secrets.sapience-core-secrets.JIRA_PROJECT_KEY}"
+                "JIRA_PROJECT_KEY": "${secrets.sapience-core-secrets.JIRA_PROJECT_KEY}",
+                "REDIS_HOST": "${addons.sapience-redis.host}",
+                "REDIS_PORT": "${addons.sapience-redis.port}",
+                "REDIS_PASSWORD": "${addons.sapience-redis.password}"
               }
             },
             "ports": [
@@ -125,65 +145,45 @@
               "projectBranch": "main"
             }
           }
-        },
+        }
+      ]
+    },
+    {
+      "name": "deploy-sapience-platform",
+      "type": "sequential",
+      "context": {
+        "projectId": "${args.PROJECT_NAME}"
+      },
+      "nodes": [
         {
-          "name": "sapience-api",
+          "name": "sapience-platform",
           "type": "combined-service",
           "spec": {
-            "name": "sapience-api",
+            "name": "sapience-platform",
             "billing": {
-              "deploymentPlan": "nf-compute-20"
+              "deploymentPlan": "nf-compute-50"
             },
             "deployment": {
-              "instances": 1,
-              "docker": {
-                "configType": "dockerfile",
-                "dockerfilePath": "/Dockerfile"
-              }
-            },
-            "runtimeEnvironment": {
-              "variables": {
-                "DATABASE_URL": "postgresql://${addons.sapience-postgres.username}:${addons.sapience-postgres.password}@${addons.sapience-postgres.host}:${addons.sapience-postgres.port}/${addons.sapience-postgres.database}",
-                "CLAUDE_API_KEY": "${secrets.sapience-core-secrets.CLAUDE_API_KEY}",
-                "SAP_ODATA_URL": "${secrets.sapience-core-secrets.SAP_ODATA_URL}",
-                "SAP_OAUTH_TOKEN": "${secrets.sapience-core-secrets.SAP_OAUTH_TOKEN}",
-                "N8N_WEBHOOK_URL": "https://${services.n8n-orchestrator.internalHost}/webhook"
-              }
-            },
-            "ports": [
-              {
-                "name": "api",
-                "internalPort": 8000,
-                "public": true,
-                "protocol": "HTTP"
-              }
-            ],
-            "vcsData": {
-              "projectUrl": "https://github.com/hadamaouattara/SAPience", 
-              "projectType": "github",
-              "projectBranch": "main"
-            }
-          }
-        },
-        {
-          "name": "sapience-frontend",
-          "type": "combined-service",
-          "spec": {
-            "name": "sapience-frontend",
-            "billing": {
-              "deploymentPlan": "nf-compute-10"
-            },
-            "deployment": {
-              "instances": 1,
+              "instances": 2,
               "docker": {
                 "configType": "dockerfile"
               }
             },
             "runtimeEnvironment": {
               "variables": {
-                "NEXT_PUBLIC_API_URL": "https://${services.sapience-api.internalHost}",
-                "NEXT_PUBLIC_N8N_URL": "https://${services.n8n-orchestrator.internalHost}",
-                "NODE_ENV": "production"
+                "NODE_ENV": "production",
+                "DATABASE_URL": "postgresql://${addons.sapience-postgres.username}:${addons.sapience-postgres.password}@${addons.sapience-postgres.host}:${addons.sapience-postgres.port}/${addons.sapience-postgres.database}",
+                "REDIS_URL": "redis://default:${addons.sapience-redis.password}@${addons.sapience-redis.host}:${addons.sapience-redis.port}",
+                "NEXTAUTH_SECRET": "${secrets.sapience-core-secrets.NEXTAUTH_SECRET}",
+                "NEXTAUTH_URL": "${secrets.sapience-core-secrets.NEXTAUTH_URL}",
+                "CLAUDE_API_KEY": "${secrets.sapience-core-secrets.CLAUDE_API_KEY}",
+                "SAP_ODATA_URL": "${secrets.sapience-core-secrets.SAP_ODATA_URL}",
+                "SAP_OAUTH_TOKEN": "${secrets.sapience-core-secrets.SAP_OAUTH_TOKEN}",
+                "N8N_WEBHOOK_URL": "https://${services.n8n-orchestrator.internalHost}/webhook",
+                "N8N_API_URL": "https://${services.n8n-orchestrator.internalHost}/api/v1",
+                "GITHUB_TOKEN": "${secrets.sapience-core-secrets.GITHUB_TOKEN}",
+                "TEAMS_TEAM_ID": "${secrets.sapience-core-secrets.TEAMS_TEAM_ID}",
+                "JIRA_PROJECT_KEY": "${secrets.sapience-core-secrets.JIRA_PROJECT_KEY}"
               }
             },
             "ports": [
@@ -195,8 +195,8 @@
               }
             ],
             "vcsData": {
-              "projectUrl": "https://github.com/hadamaouattara/sapience-v3",
-              "projectType": "github", 
+              "projectUrl": "https://github.com/hadamaouattara/SAPience",
+              "projectType": "github",
               "projectBranch": "main"
             }
           }
